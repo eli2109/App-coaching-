@@ -19,26 +19,19 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import ProgressRing from '@/components/ProgressRing';
 
-// Mock data for demo mode
-const MOCK_STATS = {
-    totalUsers: 142,
-    activeThisWeek: 89,
-    avgCompletion: 68,
-    boostCount: 78,
-    relaxCount: 64
-};
-
-const MOCK_USERS = [
-    { id: 1, email: 'alex@exemple.com', pathway: 'BOOST', progress: 3, lastActive: 'Il y a 2h', status: 'active' },
-    { id: 2, email: 'sarah.m@gmail.com', pathway: 'RELAX', progress: 4, lastActive: 'Hier', status: 'completed' },
-    { id: 3, email: 'julien_d@outlook.fr', pathway: 'BOOST', progress: 1, lastActive: 'Il y a 5m', status: 'active' },
-    { id: 4, email: 'marie.l@orange.fr', pathway: 'RELAX', progress: 2, lastActive: 'Il y a 1j', status: 'active' },
-    { id: 5, email: 'coach.test@test.com', pathway: 'BOOST', progress: 0, lastActive: 'Jamais', status: 'new' },
-];
-
 export default function AdminDashboard() {
     const [searchTerm, setSearchTerm] = useState('');
     const [authorized, setAuthorized] = useState<boolean | null>(null);
+    const [stats, setStats] = useState({
+        totalUsers: 0,
+        activeThisWeek: 0,
+        avgCompletion: 0,
+        boostCount: 0,
+        relaxCount: 0
+    });
+    const [members, setMembers] = useState<any[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+
     const router = useRouter();
     const supabase = createClient();
 
@@ -48,13 +41,94 @@ export default function AdminDashboard() {
 
             if (user && user.email === 'eliahou@bycol.ai') {
                 setAuthorized(true);
+                fetchRealData();
             } else {
                 setAuthorized(false);
                 setTimeout(() => router.push('/dashboard'), 2000);
             }
         };
+
+        const fetchRealData = async () => {
+            try {
+                // 1. Fetch Profiles (Users)
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                // 2. Fetch Progress and Pathway
+                const { data: progress } = await supabase
+                    .from('user_progress')
+                    .select('*, learning_paths(name)');
+
+                // 3. Fetch Completions
+                const { data: completions } = await supabase
+                    .from('lesson_completions')
+                    .select('*');
+
+                const total = profiles?.length || 0;
+                const boost = progress?.filter((p: any) => p.learning_paths?.name === 'BOOST').length || 0;
+                const relax = progress?.filter((p: any) => p.learning_paths?.name === 'RELAX').length || 0;
+
+                // Calculate average completion (avg days out of 4)
+                const totalDaysCompleted = progress?.reduce((acc: number, p: any) => acc + (p.current_day - 1), 0) || 0;
+                const avgComp = total > 0 ? Math.round((totalDaysCompleted / (total * 4)) * 100) : 0;
+
+                setStats({
+                    totalUsers: total,
+                    activeThisWeek: progress?.filter((p: any) => {
+                        const lastActive = new Date(p.last_lesson_completed_at || p.started_at);
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return lastActive > weekAgo;
+                    }).length || 0,
+                    avgCompletion: avgComp,
+                    boostCount: boost,
+                    relaxCount: relax
+                });
+
+                // Map members list
+                const memberList = profiles?.map(profile => {
+                    const userProg = progress?.find(p => p.user_id === profile.id);
+                    const lastActiveDate = userProg ? new Date(userProg.last_lesson_completed_at || userProg.started_at) : new Date(profile.created_at);
+
+                    return {
+                        id: profile.id,
+                        email: profile.email,
+                        pathway: userProg?.learning_paths?.name || 'PAS DÉBUTÉ',
+                        progress: userProg?.current_day || 0,
+                        lastActive: formatTimeAgo(lastActiveDate),
+                        status: userProg ? (userProg.current_day >= 4 ? 'completed' : 'active') : 'new'
+                    };
+                }) || [];
+
+                setMembers(memberList);
+            } catch (error) {
+                console.error("Error fetching admin data:", error);
+            } finally {
+                setLoadingData(false);
+            }
+        };
+
         checkAuth();
     }, [router, supabase]);
+
+    const formatTimeAgo = (date: Date) => {
+        const diff = Date.now() - date.getTime();
+        const mins = Math.floor(diff / 60000);
+        const hours = Math.floor(mins / 60);
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `Il y a ${days}j`;
+        if (hours > 0) return `Il y a ${hours}h`;
+        if (mins > 0) return `Il y a ${mins}m`;
+        return 'À l\'instant';
+    };
+
+    const filteredMembers = members.filter(m =>
+        m.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
 
     if (authorized === null) {
         return (
@@ -119,34 +193,37 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard
                         title="Membres Totaux"
-                        value={MOCK_STATS.totalUsers}
+                        value={stats.totalUsers}
                         icon={<Users className="text-indigo-400" />}
-                        trend="+12% cette semaine"
+                        trend="+0 cette semaine"
                     />
                     <StatCard
                         title="Actifs hebdomadaire"
-                        value={MOCK_STATS.activeThisWeek}
+                        value={stats.activeThisWeek}
                         icon={<TrendingUp className="text-emerald-400" />}
-                        trend="Stable"
+                        trend="Live"
                     />
                     <StatCard
                         title="Complétion Moyenne"
-                        value={`${MOCK_STATS.avgCompletion}%`}
+                        value={`${stats.avgCompletion}%`}
                         icon={<CheckCircle2 className="text-purple-400" />}
-                        trend="+5% vs mois dernier"
+                        trend="En temps réel"
                     />
                     <div className="bg-gray-900/40 p-6 rounded-[2rem] border border-gray-900 flex flex-col justify-between">
                         <span className="text-xs font-black uppercase tracking-widest text-gray-500">Répartition</span>
                         <div className="flex items-center justify-between mt-4">
                             <div className="flex items-center gap-2">
                                 <Zap size={16} className="text-orange-400" />
-                                <span className="text-lg font-bold">{MOCK_STATS.boostCount}</span>
+                                <span className="text-lg font-bold">{stats.boostCount}</span>
                             </div>
                             <div className="w-12 h-1 bg-gray-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-500" style={{ width: '55%' }} />
+                                <div
+                                    className="h-full bg-indigo-500 transition-all duration-1000"
+                                    style={{ width: stats.totalUsers > 0 ? `${(stats.boostCount / stats.totalUsers) * 100}%` : '50%' }}
+                                />
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold">{MOCK_STATS.relaxCount}</span>
+                                <span className="text-lg font-bold">{stats.relaxCount}</span>
                                 <Leaf size={16} className="text-emerald-400" />
                             </div>
                         </div>
@@ -173,11 +250,11 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-900/50">
-                                    {(MOCK_USERS as any[]).map((user) => (
+                                    {filteredMembers.map((user) => (
                                         <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
                                             <td className="px-8 py-6">
                                                 <span className="font-bold text-gray-200 block">{user.email}</span>
-                                                <span className="text-xs text-gray-500">ID: #{user.id}442</span>
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-widest">{user.status}</span>
                                             </td>
                                             <td className="px-8 py-6">
                                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.pathway === 'BOOST' ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'
@@ -190,11 +267,11 @@ export default function AdminDashboard() {
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex-1 h-1.5 bg-gray-800 rounded-full max-w-[100px] overflow-hidden">
                                                         <div
-                                                            className={`h-full rounded-full ${user.pathway === 'BOOST' ? 'bg-orange-500' : 'bg-emerald-500'}`}
-                                                            style={{ width: `${(user.progress / 4) * 100}%` }}
+                                                            className={`h-full rounded-full transition-all duration-1000 ${user.pathway === 'BOOST' ? 'bg-orange-500' : 'bg-emerald-500'}`}
+                                                            style={{ width: `${(Math.min(user.progress, 4) / 4) * 100}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-xs font-bold text-gray-400">{user.progress}/4</span>
+                                                    <span className="text-xs font-bold text-gray-400">{Math.min(user.progress, 4)}/4</span>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-sm text-gray-500 italic">
@@ -207,6 +284,13 @@ export default function AdminDashboard() {
                                             </td>
                                         </tr>
                                     ))}
+                                    {filteredMembers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-8 py-12 text-center text-gray-500 italic text-sm">
+                                                Aucun membre trouvé.
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -230,7 +314,7 @@ export default function AdminDashboard() {
                         <div className="bg-gray-900/40 p-8 rounded-[2.5rem] border border-gray-900 space-y-6">
                             <h4 className="text-sm font-black uppercase tracking-widest text-gray-500">Performances Globales</h4>
                             <div className="flex items-center justify-center py-4">
-                                <ProgressRing progress={MOCK_STATS.avgCompletion} size={160} strokeWidth={10} color="stroke-indigo-500" />
+                                <ProgressRing progress={stats.avgCompletion} size={160} strokeWidth={10} color="stroke-indigo-500" />
                             </div>
                             <p className="text-center text-xs text-gray-400 px-4 leading-relaxed">
                                 Taux de complétion moyen de l'ensemble des parcours actifs.
