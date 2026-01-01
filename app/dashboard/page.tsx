@@ -141,12 +141,12 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen bg-gray-900 text-white font-sans pb-24">
             {/* Header */}
-            <header className="p-6 flex items-center justify-between">
+            <header className="pt-12 px-6 pb-6 flex items-center justify-between">
                 <div className="space-y-1">
-                    <p className="text-gray-400 text-sm font-medium">
+                    <p className="text-gray-400 text-xl font-bold tracking-tight">
                         {userName ? `Bonjour ${userName},` : 'Bon retour,'}
                     </p>
-                    <h1 className="text-2xl font-bold">Ton Programme</h1>
+                    <h1 className="text-4xl font-black italic uppercase tracking-tighter">Ton Programme</h1>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
