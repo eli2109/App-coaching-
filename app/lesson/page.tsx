@@ -18,41 +18,82 @@ export default function LessonPage() {
 
     useEffect(() => {
         const checkState = async () => {
-            // In a real app, this would come from Supabase
-            const savedPathway = localStorage.getItem('user_pathway') as 'BOOST' | 'RELAX';
-            const lastCompletedDay = parseInt(localStorage.getItem('last_completed_day') || '0');
-            const startedAtStr = localStorage.getItem('started_at');
+            setLoading(true);
+            try {
+                // 1. Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    router.push('/login');
+                    return;
+                }
 
-            if (!savedPathway) {
-                router.push('/quiz');
-                return;
+                // 2. Fetch User Progress and Path Name
+                const { data: progressData, error: progressError } = await supabase
+                    .from('user_progress')
+                    .select('*, learning_paths(name)')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (progressError || !progressData) {
+                    router.push('/quiz');
+                    return;
+                }
+
+                const currentPath = progressData.learning_paths.name as 'BOOST' | 'RELAX';
+                setPathway(currentPath);
+
+                // 3. Simple daily logic based on start date
+                const startedAt = new Date(progressData.started_at).getTime();
+                const daysElapsed = Math.floor((Date.now() - startedAt) / (1000 * 60 * 60 * 24));
+                const today = Math.min(daysElapsed + 1, 4);
+                setCurrentDay(today);
+
+                // 4. Check if TODAY is already completed in lesson_completions
+                const { data: completion } = await supabase
+                    .from('lesson_completions')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('lesson_id', today.toString())
+                    .single();
+
+                setIsCompleted(!!completion);
+
+            } catch (error) {
+                console.error("Error loading lesson state:", error);
+                router.push('/dashboard');
+            } finally {
+                setLoading(false);
             }
-
-            setPathway(savedPathway);
-
-            // Simple daily logic: if no startedAt, set it now
-            let startedAt: number;
-            if (!startedAtStr) {
-                startedAt = Date.now();
-                localStorage.setItem('started_at', startedAt.toString());
-            } else {
-                startedAt = parseInt(startedAtStr);
-            }
-
-            const daysElapsed = Math.floor((Date.now() - startedAt) / (1000 * 60 * 60 * 24));
-            const today = Math.min(daysElapsed + 1, 4);
-
-            setCurrentDay(today);
-            setIsCompleted(lastCompletedDay >= today);
-            setLoading(false);
         };
 
         checkState();
-    }, [router]);
+    }, [router, supabase]);
 
-    const handleComplete = () => {
-        localStorage.setItem('last_completed_day', currentDay.toString());
-        setIsCompleted(true);
+    const handleComplete = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // 1. Record completion in lesson_completions
+            await supabase.from('lesson_completions').upsert({
+                user_id: user.id,
+                lesson_id: currentDay.toString(),
+                completed_at: new Date().toISOString()
+            });
+
+            // 2. Update user_progress
+            await supabase.from('user_progress').update({
+                last_lesson_completed_at: new Date().toISOString()
+            }).eq('user_id', user.id);
+
+            setIsCompleted(true);
+
+            // Cleanup local storage if it was used before
+            localStorage.setItem('last_completed_day', currentDay.toString());
+        } catch (error) {
+            console.error("Error completing lesson:", error);
+            setIsCompleted(true);
+        }
     };
 
     if (loading || !pathway) return (

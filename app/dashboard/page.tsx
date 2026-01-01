@@ -21,43 +21,65 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const checkState = async () => {
-            const savedPathway = localStorage.getItem('user_pathway') as 'BOOST' | 'RELAX';
-            const lastCompletedDay = parseInt(localStorage.getItem('last_completed_day') || '0');
-            const startedAtStr = localStorage.getItem('started_at');
+            setLoading(true);
+            try {
+                // 1. Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    router.push('/login');
+                    return;
+                }
+                setUserEmail(user.email ?? null);
 
-            if (!savedPathway) {
-                router.push('/quiz');
-                return;
+                // 2. Fetch User Progress and Path Name
+                const { data: progressData, error: progressError } = await supabase
+                    .from('user_progress')
+                    .select('*, learning_paths(name)')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (progressError || !progressData) {
+                    router.push('/quiz');
+                    return;
+                }
+
+                const currentPath = progressData.learning_paths.name as 'BOOST' | 'RELAX';
+                setPathway(currentPath);
+
+                // 3. Simple daily logic based on start date
+                const startedAt = new Date(progressData.started_at).getTime();
+                const daysElapsed = Math.floor((Date.now() - startedAt) / (1000 * 60 * 60 * 24));
+                const today = Math.min(daysElapsed + 1, 4);
+                setCurrentDay(today);
+
+                // 4. Fetch Completed Lessons
+                const { data: completions } = await supabase
+                    .from('lesson_completions')
+                    .select('lesson_id')
+                    .eq('user_id', user.id);
+
+                // In this simple app, lesson_id corresponds to the day number
+                const completed = completions?.map(c => parseInt(c.lesson_id)) || [];
+                setCompletedDays(completed);
+
+                // Check notification permission
+                if (typeof window !== 'undefined' && 'Notification' in window) {
+                    setNotificationsEnabled(Notification.permission === 'granted');
+                }
+
+            } catch (error) {
+                console.error("Error loading dashboard state:", error);
+                // Fallback attempt for dev
+                const savedPathway = localStorage.getItem('user_pathway') as 'BOOST' | 'RELAX';
+                if (savedPathway) setPathway(savedPathway);
+                else router.push('/quiz');
+            } finally {
+                setLoading(false);
             }
-
-            setPathway(savedPathway);
-
-            const startedAt = startedAtStr ? parseInt(startedAtStr) : Date.now();
-            const daysElapsed = Math.floor((Date.now() - startedAt) / (1000 * 60 * 60 * 24));
-            const today = Math.min(daysElapsed + 1, 4);
-
-            setCurrentDay(today);
-
-            const completed = [];
-            for (let i = 1; i <= lastCompletedDay; i++) {
-                completed.push(i);
-            }
-            setCompletedDays(completed);
-
-            // Check notification permission
-            if (typeof window !== 'undefined' && 'Notification' in window) {
-                setNotificationsEnabled(Notification.permission === 'granted');
-            }
-
-            // Get user email for admin check
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) setUserEmail(user.email ?? null);
-
-            setLoading(false);
         };
 
         checkState();
-    }, [router]);
+    }, [router, supabase]);
 
     const toggleNotifications = async () => {
         if (!('Notification' in window)) {

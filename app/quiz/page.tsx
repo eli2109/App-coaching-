@@ -38,16 +38,37 @@ export default function QuizPage() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                // Here we would normally save to the database
-                // For now, let's assume we'll set up the DB later
-                console.log('Saving result for user:', user.id, finalResult);
+                // 1. Get the pathway ID from the learning_paths table
+                const { data: paths } = await supabase
+                    .from('learning_paths')
+                    .select('id')
+                    .eq('name', finalResult)
+                    .single();
 
-                // Mock save to localStorage for immediate persistency during dev
+                if (paths) {
+                    // 2. Insert or update user_progress
+                    const { error } = await supabase
+                        .from('user_progress')
+                        .upsert({
+                            user_id: user.id,
+                            learning_path_id: paths.id,
+                            current_day: 1,
+                            started_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' });
+
+                    if (error) throw error;
+                    console.log('Saved result to Supabase for user:', user.id, finalResult);
+                }
+
+                // Keep localStorage as a fallback/cache for now
                 localStorage.setItem('user_pathway', finalResult);
                 localStorage.setItem('quiz_completed', 'true');
             }
         } catch (error) {
-            console.error('Error saving quiz result:', error);
+            console.error('Error saving quiz result to Supabase:', error);
+            // Fallback to localStorage if Supabase fails
+            localStorage.setItem('user_pathway', finalResult);
+            localStorage.setItem('quiz_completed', 'true');
         }
     };
 
@@ -131,8 +152,8 @@ export default function QuizPage() {
                                 animate={{ scale: 1 }}
                                 transition={{ type: 'spring', damping: 12, stiffness: 200 }}
                                 className={`w-24 h-24 rounded-full flex items-center justify-center ${result === 'BOOST'
-                                        ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_40px_rgba(249,115,22,0.2)]'
-                                        : 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.2)]'
+                                    ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_40px_rgba(249,115,22,0.2)]'
+                                    : 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.2)]'
                                     }`}
                             >
                                 {result === 'BOOST' ? <Zap size={48} /> : <Leaf size={48} />}
@@ -155,8 +176,8 @@ export default function QuizPage() {
                         <button
                             onClick={startJourney}
                             className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all transform hover:scale-[1.02] active:scale-[0.98] ${result === 'BOOST'
-                                    ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                                    : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                ? 'bg-gradient-to-r from-orange-500 to-red-500'
+                                : 'bg-gradient-to-r from-emerald-500 to-teal-500'
                                 }`}
                         >
                             Démarrer mon parcours
