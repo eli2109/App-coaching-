@@ -40,6 +40,12 @@ export default async function Index() {
             Coaching Quotidien Personnalisé
           </div>
 
+          {user?.user_metadata?.first_name && (
+            <div className="text-2xl font-black italic uppercase tracking-tighter text-indigo-400 mb-2">
+              Bonjour {user.user_metadata.first_name} !
+            </div>
+          )}
+
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
             Transforme ton <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
