@@ -24,19 +24,25 @@ export default function QuizPage() {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    const { data } = await supabase
+                    const { data: progressData, error: progressError } = await supabase
                         .from('user_progress')
                         .select('id')
                         .eq('user_id', user.id)
                         .single();
 
-                    if (data) {
+                    if (progressError && progressError.code !== 'PGRST116') { // PGRST116 means no rows found
+                        alert("Erreur Supabase (user_progress select): " + progressError.message);
+                        throw progressError;
+                    }
+
+                    if (progressData) {
                         router.push('/dashboard');
                         return;
                     }
                 }
             } catch (e) {
-                // Not found is fine
+                console.error("Error checking existing progress:", e);
+                // Not found is fine, or other errors are logged
             } finally {
                 setIsChecking(false);
             }
@@ -86,8 +92,13 @@ export default function QuizPage() {
                             started_at: new Date().toISOString()
                         }, { onConflict: 'user_id' });
 
-                    if (error) throw error;
+                    if (error) {
+                        alert("Erreur BDD (progress): " + error.message);
+                        throw error;
+                    }
                     console.log('Saved result to Supabase for user:', user.id, finalResult);
+                } else {
+                    alert("ERREUR : Parcours '" + finalResult + "' non trouvé en base. Avez-vous exécuté seed.sql ?");
                 }
 
                 // Keep localStorage as a fallback/cache for now

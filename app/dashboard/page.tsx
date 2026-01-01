@@ -38,7 +38,13 @@ export default function DashboardPage() {
                     .eq('user_id', user.id)
                     .single();
 
-                if (progressError || !progressData) {
+                if (progressError && progressError.code !== 'PGRST116') {
+                    alert("Erreur BDD (dashboard progress): " + progressError.message);
+                    throw progressError;
+                }
+
+                if (!progressData) {
+                    console.log("No progress found in Supabase, redirecting to quiz");
                     router.push('/quiz');
                     return;
                 }
