@@ -31,7 +31,18 @@ export default function DashboardPage() {
                     return;
                 }
                 setUserEmail(user.email ?? null);
-                setUserName(user.user_metadata?.first_name || null);
+
+                // Fetch name from metadata OR profiles table
+                let name = user.user_metadata?.first_name;
+                if (!name) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('first_name')
+                        .eq('id', user.id)
+                        .single();
+                    name = profile?.first_name;
+                }
+                setUserName(name || null);
 
                 // 2. Fetch User Progress and Path Name
                 const { data: progressData, error: progressError } = await supabase

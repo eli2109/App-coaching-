@@ -10,7 +10,18 @@ export default async function Index() {
 
   try {
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    user = authUser;
+    if (authUser) {
+      let name = authUser.user_metadata?.first_name;
+      if (!name) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name')
+          .eq('id', authUser.id)
+          .single();
+        name = profile?.first_name;
+      }
+      user = { ...authUser, user_metadata: { ...authUser.user_metadata, first_name: name } };
+    }
   } catch (e) {
     console.error("Supabase not configured or unreachable. Entering Demo Mode.");
   }
