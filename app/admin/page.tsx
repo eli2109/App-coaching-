@@ -243,7 +243,8 @@ export default function AdminDashboard() {
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="text-[10px] font-black uppercase tracking-widest text-gray-500 border-b border-gray-900">
-                                        <th className="px-8 py-4">Membre</th>
+                                        <th className="px-8 py-4">Prénom</th>
+                                        <th className="px-8 py-4">Mail</th>
                                         <th className="px-8 py-4">Parcours</th>
                                         <th className="px-8 py-4">Progression</th>
                                         <th className="px-8 py-4">Activité</th>
@@ -255,9 +256,12 @@ export default function AdminDashboard() {
                                         <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
                                             <td className="px-8 py-6">
                                                 <span className="font-bold text-gray-200 block">
-                                                    {user.first_name ? `${user.first_name} (${user.email})` : user.email}
+                                                    {user.first_name || '-'}
                                                 </span>
                                                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">{user.status}</span>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <span className="text-sm text-gray-400">{user.email}</span>
                                             </td>
                                             <td className="px-8 py-6">
                                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.pathway === 'BOOST' ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'
