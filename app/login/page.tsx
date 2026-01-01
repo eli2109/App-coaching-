@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { SubmitButton } from "./submit-button";
-import { BackButton } from "@/components/Button/backButton";
+import LoginForm from "./login-form";
 
 export default function Login({
   searchParams,
@@ -16,6 +14,15 @@ export default function Login({
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const supabase = createClient();
+
+    // DUMMY AUTH FOR DEMO MODE
+    const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes("dummy.supabase.co");
+
+    if (isDemoMode) {
+      const cookieStore = cookies();
+      cookieStore.set("demo-user", JSON.stringify({ id: "demo-id", email }), { path: "/" });
+      return redirect("/dashboard");
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -37,6 +44,15 @@ export default function Login({
     const password = formData.get("password") as string;
     const supabase = createClient();
 
+    // DUMMY AUTH FOR DEMO MODE
+    const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes("dummy.supabase.co");
+
+    if (isDemoMode) {
+      const cookieStore = cookies();
+      cookieStore.set("demo-user", JSON.stringify({ id: "demo-id", email }), { path: "/" });
+      return redirect("/dashboard");
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -53,57 +69,15 @@ export default function Login({
   };
 
   return (
-    <div className="flex justify-center items-center h-screen">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-300 to-red-300 blur-lg rounded-md"></div>
-        <div className="relative z-10 p-8 bg-white rounded-md shadow-lg">
-          <div className="flex items-center mb-10">
-            <div className="pl-5">
-              <BackButton link={"/"} />
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[150px] rounded-full" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-purple-600/5 blur-[150px] rounded-full" />
 
-          <form className="animate-in flex flex-col gap-2 text-foreground">
-            <label className="text-md" htmlFor="email">
-              Email
-            </label>
-            <input
-              className="rounded-md px-4 py-2 bg-inherit border mb-6"
-              name="email"
-              placeholder="you@example.com"
-              required
-            />
-            <label className="text-md" htmlFor="password">
-              Password
-            </label>
-            <input
-              className="rounded-md px-4 py-2 bg-inherit border mb-6"
-              type="password"
-              name="password"
-              placeholder="••••••••"
-              required
-            />
-            <SubmitButton
-              formAction={signIn}
-              className="bg-indigo-500 rounded-md px-4 py-2 text-white text-foreground mb-2"
-              pendingText="Signing In..."
-            >
-              Sign In
-            </SubmitButton>
-            <SubmitButton
-              formAction={signUp}
-              className="border border-foreground/20 rounded-md px-4 py-2 text-foreground mb-2"
-              pendingText="Signing Up..."
-            >
-              Sign Up
-            </SubmitButton>
-            {searchParams?.message && (
-              <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
-                {searchParams.message}
-              </p>
-            )}
-          </form>
-        </div>
+      <LoginForm signIn={signIn} signUp={signUp} searchParams={searchParams} />
+
+      <div className="mt-8 text-gray-600 text-[10px] font-black uppercase tracking-widest z-10">
+        Premium Coaching Experience
       </div>
     </div>
   );

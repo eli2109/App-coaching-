@@ -1,0 +1,18 @@
+{
+    "name": "Coaching BOOST/RELAX",
+    "short_name": "Coaching",
+    "description": "Ton programme de coaching quotidien personnalisé",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111827",
+    "theme_color": "#6366f1",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
