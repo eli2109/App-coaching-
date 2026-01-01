@@ -7,6 +7,7 @@ import { PATHWAYS } from '@/data/content';
 import ProgressRing from '@/components/ProgressRing';
 import { Play, CheckCircle2, Lock, Zap, Leaf, Calendar, ChevronRight, Bell, BellOff, User, LogOut, AlertTriangle, X, Shield } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import OnboardingModal from '@/components/OnboardingModal';
 
 export default function DashboardPage() {
     const [pathway, setPathway] = useState<'BOOST' | 'RELAX' | null>(null);
@@ -17,6 +18,7 @@ export default function DashboardPage() {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [userName, setUserName] = useState<string | null>(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
@@ -29,6 +31,12 @@ export default function DashboardPage() {
                 if (!user) {
                     router.push('/login');
                     return;
+                }
+
+                // Check for first visit onboarding
+                const hasSeenOnboarding = localStorage.getItem('has_seen_onboarding');
+                if (!hasSeenOnboarding) {
+                    setShowOnboarding(true);
                 }
                 setUserEmail(user.email ?? null);
 
@@ -352,6 +360,16 @@ export default function DashboardPage() {
                     </div>
                 )}
             </AnimatePresence>
+            {/* Onboarding Modal */}
+            <OnboardingModal
+                isOpen={showOnboarding}
+                onClose={() => {
+                    setShowOnboarding(false);
+                    localStorage.setItem('has_seen_onboarding', 'true');
+                }}
+                onEnableNotifications={toggleNotifications}
+                notificationsEnabled={notificationsEnabled}
+            />
         </div>
     );
 }
