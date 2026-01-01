@@ -42,6 +42,7 @@ export default function Login({
     const origin = headers().get("origin");
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
     const supabase = createClient();
 
     // DUMMY AUTH FOR DEMO MODE
@@ -49,7 +50,7 @@ export default function Login({
 
     if (isDemoMode) {
       const cookieStore = cookies();
-      cookieStore.set("demo-user", JSON.stringify({ id: "demo-id", email }), { path: "/" });
+      cookieStore.set("demo-user", JSON.stringify({ id: "demo-id", email, name }), { path: "/" });
       return redirect("/dashboard");
     }
 
@@ -58,6 +59,9 @@ export default function Login({
       password,
       options: {
         emailRedirectTo: `${origin}/auth/callback`,
+        data: {
+          first_name: name,
+        }
       },
     });
 

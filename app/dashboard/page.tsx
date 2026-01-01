@@ -16,6 +16,7 @@ export default function DashboardPage() {
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string | null>(null);
     const router = useRouter();
     const supabase = createClient();
 
@@ -30,6 +31,7 @@ export default function DashboardPage() {
                     return;
                 }
                 setUserEmail(user.email ?? null);
+                setUserName(user.user_metadata?.first_name || null);
 
                 // 2. Fetch User Progress and Path Name
                 const { data: progressData, error: progressError } = await supabase
@@ -130,7 +132,9 @@ export default function DashboardPage() {
             {/* Header */}
             <header className="p-6 flex items-center justify-between">
                 <div className="space-y-1">
-                    <p className="text-gray-400 text-sm font-medium">Bon retour,</p>
+                    <p className="text-gray-400 text-sm font-medium">
+                        {userName ? `Bonjour ${userName},` : 'Bon retour,'}
+                    </p>
                     <h1 className="text-2xl font-bold">Ton Programme</h1>
                 </div>
                 <div className="flex items-center gap-3">
