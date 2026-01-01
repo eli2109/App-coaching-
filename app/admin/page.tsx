@@ -95,6 +95,7 @@ export default function AdminDashboard() {
                     return {
                         id: profile.id,
                         email: profile.email,
+                        first_name: profile.first_name || null,
                         pathway: userProg?.learning_paths?.name || 'PAS DÉBUTÉ',
                         progress: userProg?.current_day || 0,
                         lastActive: formatTimeAgo(lastActiveDate),
@@ -253,7 +254,9 @@ export default function AdminDashboard() {
                                     {filteredMembers.map((user) => (
                                         <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
                                             <td className="px-8 py-6">
-                                                <span className="font-bold text-gray-200 block">{user.email}</span>
+                                                <span className="font-bold text-gray-200 block">
+                                                    {user.first_name ? `${user.first_name} (${user.email})` : user.email}
+                                                </span>
                                                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">{user.status}</span>
                                             </td>
                                             <td className="px-8 py-6">
@@ -322,8 +325,8 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
 
