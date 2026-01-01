@@ -30,11 +30,15 @@ export default function LessonPage() {
                 // 2. Fetch User Progress and Path Name
                 const { data: progressData, error: progressError } = await supabase
                     .from('user_progress')
-                    .select('*, learning_paths(name)')
+                    .select('*, learning_paths(name), learning_path_id') // Added learning_path_id
                     .eq('user_id', user.id)
                     .single();
 
-                if (progressError || !progressData) {
+                if (progressError && progressError.code !== 'PGRST116') {
+                    throw progressError;
+                }
+
+                if (!progressData) {
                     router.push('/quiz');
                     return;
                 }
@@ -48,15 +52,25 @@ export default function LessonPage() {
                 const today = Math.min(daysElapsed + 1, 4);
                 setCurrentDay(today);
 
-                // 4. Check if TODAY is already completed in lesson_completions
-                const { data: completion } = await supabase
-                    .from('lesson_completions')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('lesson_id', today.toString())
+                // 4. Fetch the actual lesson UUID for today
+                const { data: dbLesson } = await supabase
+                    .from('lessons')
+                    .select('id')
+                    .eq('day_number', today)
+                    .eq('learning_path_id', progressData.learning_path_id)
                     .single();
 
-                setIsCompleted(!!completion);
+                if (dbLesson) {
+                    // Check if TODAY is already completed in lesson_completions
+                    const { data: completion } = await supabase
+                        .from('lesson_completions')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .eq('lesson_id', dbLesson.id)
+                        .single();
+
+                    setIsCompleted(!!completion);
+                }
 
             } catch (error) {
                 console.error("Error loading lesson state:", error);
@@ -74,14 +88,33 @@ export default function LessonPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Record completion in lesson_completions
+            // 1. Fetch User Progress to get learning_path_id
+            const { data: progressData } = await supabase
+                .from('user_progress')
+                .select('learning_path_id')
+                .eq('user_id', user.id)
+                .single();
+
+            if (!progressData) return;
+
+            // 2. Fetch the actual lesson UUID
+            const { data: dbLesson } = await supabase
+                .from('lessons')
+                .select('id')
+                .eq('day_number', currentDay)
+                .eq('learning_path_id', progressData.learning_path_id)
+                .single();
+
+            if (!dbLesson) return;
+
+            // 3. Record completion in lesson_completions
             await supabase.from('lesson_completions').upsert({
                 user_id: user.id,
-                lesson_id: currentDay.toString(),
+                lesson_id: dbLesson.id,
                 completed_at: new Date().toISOString()
             });
 
-            // 2. Update user_progress
+            // 4. Update user_progress
             await supabase.from('user_progress').update({
                 last_lesson_completed_at: new Date().toISOString()
             }).eq('user_id', user.id);

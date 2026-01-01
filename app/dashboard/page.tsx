@@ -39,7 +39,7 @@ export default function DashboardPage() {
                     .single();
 
                 if (progressError && progressError.code !== 'PGRST116') {
-                    alert("Erreur BDD (dashboard progress): " + progressError.message);
+                    console.error("Erreur BDD (dashboard progress): " + progressError.message);
                     throw progressError;
                 }
 
@@ -58,14 +58,18 @@ export default function DashboardPage() {
                 const today = Math.min(daysElapsed + 1, 4);
                 setCurrentDay(today);
 
-                // 4. Fetch Completed Lessons
-                const { data: completions } = await supabase
+                // 4. Fetch Completed Lessons (joining with lessons to get the day_number)
+                const { data: completions, error: completionsError } = await supabase
                     .from('lesson_completions')
-                    .select('lesson_id')
+                    .select('lessons(day_number)')
                     .eq('user_id', user.id);
 
-                // In this simple app, lesson_id corresponds to the day number
-                const completed = completions?.map(c => parseInt(c.lesson_id)) || [];
+                if (completionsError) {
+                    console.error("Error fetching completions:", completionsError);
+                }
+
+                // Map the joined data to an array of day numbers
+                const completed = completions?.map((c: any) => c.lessons?.day_number).filter(Boolean) || [];
                 setCompletedDays(completed);
 
                 // Check notification permission
@@ -75,10 +79,7 @@ export default function DashboardPage() {
 
             } catch (error) {
                 console.error("Error loading dashboard state:", error);
-                // Fallback attempt for dev
-                const savedPathway = localStorage.getItem('user_pathway') as 'BOOST' | 'RELAX';
-                if (savedPathway) setPathway(savedPathway);
-                else router.push('/quiz');
+                router.push('/quiz');
             } finally {
                 setLoading(false);
             }
