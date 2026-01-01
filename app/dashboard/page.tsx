@@ -214,16 +214,31 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => router.push('/lesson')}
-                            className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${isTodayCompleted
-                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                                : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
-                                }`}
-                        >
-                            {isTodayCompleted ? 'Séance terminée' : 'Démarrer la séance'}
-                            {!isTodayCompleted && <ChevronRight size={20} />}
-                        </button>
+                        {isTodayCompleted ? (
+                            <div className="space-y-4">
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl text-center">
+                                    <p className="text-emerald-400 text-sm font-medium">
+                                        Bravo, vous avez fait la séance aujourd'hui. <br />
+                                        <span className="text-xs opacity-70">Revenez demain pour la suite !</span>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => router.push('/lesson')}
+                                    className="w-full py-4 rounded-2xl font-black bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all flex items-center justify-center gap-2"
+                                >
+                                    Refaire la séance d'aujourd'hui
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => router.push('/lesson')}
+                                className="w-full py-4 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all"
+                            >
+                                Démarrer la séance
+                                <ChevronRight size={20} />
+                            </button>
+                        )}
                     </motion.div>
                 </section>
 
