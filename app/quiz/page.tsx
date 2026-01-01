@@ -12,8 +12,37 @@ export default function QuizPage() {
     const [answers, setAnswers] = useState<('BOOST' | 'RELAX')[]>([]);
     const [isFinished, setIsFinished] = useState(false);
     const [result, setResult] = useState<'BOOST' | 'RELAX' | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
+
     const router = useRouter();
     const supabase = createClient();
+
+    // Check if user already has a profile/progress
+    useState(() => {
+        const checkExisting = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data } = await supabase
+                        .from('user_progress')
+                        .select('id')
+                        .eq('user_id', user.id)
+                        .single();
+
+                    if (data) {
+                        router.push('/dashboard');
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Not found is fine
+            } finally {
+                setIsChecking(false);
+            }
+        };
+        checkExisting();
+    });
 
     const handleAnswer = (target: 'BOOST' | 'RELAX') => {
         const newAnswers = [...answers, target];
@@ -32,6 +61,7 @@ export default function QuizPage() {
         const finalResult = boostCount >= 2 ? 'BOOST' : 'RELAX';
 
         setResult(finalResult);
+        setIsSaving(true);
         setIsFinished(true);
 
         // Save progress to Supabase
@@ -66,15 +96,26 @@ export default function QuizPage() {
             }
         } catch (error) {
             console.error('Error saving quiz result to Supabase:', error);
-            // Fallback to localStorage if Supabase fails
             localStorage.setItem('user_pathway', finalResult);
             localStorage.setItem('quiz_completed', 'true');
+        } finally {
+            setIsSaving(false);
         }
     };
 
     const startJourney = () => {
-        router.push('/dashboard');
+        if (!isSaving) {
+            router.push('/dashboard');
+        }
     };
+
+    if (isChecking) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        );
+    }
 
     const currentQuestion = QUIZ_QUESTIONS[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / QUIZ_QUESTIONS.length) * 100;
@@ -175,13 +216,23 @@ export default function QuizPage() {
 
                         <button
                             onClick={startJourney}
-                            className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all transform hover:scale-[1.02] active:scale-[0.98] ${result === 'BOOST'
+                            disabled={isSaving}
+                            className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all transform hover:scale-[1.02] active:scale-[0.98] ${isSaving ? 'opacity-50 cursor-not-allowed' : ''} ${result === 'BOOST'
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500'
                                 : 'bg-gradient-to-r from-emerald-500 to-teal-500'
                                 }`}
                         >
-                            Démarrer mon parcours
-                            <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                            {isSaving ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                                    Préparation de ton parcours...
+                                </>
+                            ) : (
+                                <>
+                                    Démarrer mon parcours
+                                    <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                                </>
+                            )}
                         </button>
                     </motion.div>
                 )}
